@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Family Locator — прототип карты и зон</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body class="role-parent">
+
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <span>Family Locator</span>
+        <span class="brand-sub">прототип карты и зон</span>
+      </div>
+      <div class="role-switch" role="tablist" aria-label="Выбор роли">
+        <button class="role-btn active" data-role="parent" role="tab" aria-selected="true">Родитель</button>
+        <button class="role-btn" data-role="child" role="tab" aria-selected="false">Ребёнок</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+
+        <!-- ==== PARENT VIEW ==== -->
+        <div class="view view-parent">
+
+          <section class="panel">
+            <h2>Зоны</h2>
+            <p class="hint">Без ограничения по количеству. Добавляйте по клику на карте или по текущей геопозиции.</p>
+
+            <div id="zoneForm" class="zone-form">
+              <input id="zoneName" type="text" placeholder="Название зоны (например, Дом)" maxlength="40" />
+              <div class="row">
+                <label class="radius-label">Радиус
+                  <input id="zoneRadius" type="number" min="20" max="2000" step="10" value="150" />
+                  <span>м</span>
+                </label>
+              </div>
+              <div class="row btns">
+                <button id="btnPickOnMap" class="btn">📍 Указать на карте</button>
+                <button id="btnUseCurrentLocation" class="btn">🎯 Моя геопозиция</button>
+              </div>
+              <div id="pickHint" class="pick-hint hidden">Кликните по карте, чтобы разместить зону «<span id="pickHintName"></span>»…
+                <button id="btnCancelPick" class="btn-link">отменить</button>
+              </div>
+            </div>
+
+            <ul id="zoneList" class="zone-list"></ul>
+          </section>
+
+          <section class="panel">
+            <h2>Совместное присутствие</h2>
+            <p class="hint">Когда родитель рядом с ребёнком, точечный трекинг пути и уведомления приостанавливаются.</p>
+            <label class="switch-row">
+              <input type="checkbox" id="coPresenceToggle" />
+              <span>Родитель физически рядом с ребёнком</span>
+            </label>
+            <div id="coPresenceStatus" class="status-line"></div>
+          </section>
+
+          <section class="panel">
+            <h2>Возраст и автоотключение</h2>
+            <p class="hint">По достижении 15 лет трекинг отключается автоматически.</p>
+            <label class="field-label">Дата рождения ребёнка
+              <input type="date" id="childBirthDate" />
+            </label>
+            <div id="ageStatus" class="status-line"></div>
+            <button id="btnSimulateBirthday" class="btn btn-secondary">🎂 Симулировать «уже 15 лет»</button>
+          </section>
+
+          <section class="panel">
+            <h2>Движение ребёнка (симуляция)</h2>
+            <p class="hint">Между зонами координата отправляется только в движении, раз в 30–60 сек.</p>
+            <button id="btnSimulateWalk" class="btn">▶️ Проиграть маршрут между зонами</button>
+            <div id="activityBadge" class="activity-badge hidden"></div>
+          </section>
+
+          <section class="panel">
+            <h2>Журнал событий</h2>
+            <ul id="eventLog" class="event-log"><li class="empty">Событий пока нет</li></ul>
+          </section>
+
+        </div>
+
+        <!-- ==== CHILD VIEW ==== -->
+        <div class="view view-child hidden">
+
+          <section class="panel tracking-indicator">
+            <div id="trackingBadge" class="tracking-badge tracking-on">
+              <span class="dot"></span>
+              <div>
+                <strong id="trackingBadgeTitle">Трекинг активен</strong>
+                <div id="trackingBadgeSub" class="tracking-sub">Родитель видит твоё местоположение</div>
+              </div>
+            </div>
+            <div id="coPresenceChildNote" class="status-line hidden">⏸ Точечный трекинг приостановлен — родитель рядом</div>
+          </section>
+
+          <section class="panel">
+            <h2>Мои зоны</h2>
+            <p class="hint">Зоны настраивает родитель. Здесь — только просмотр.</p>
+            <ul id="zoneListChild" class="zone-list read-only"></ul>
+          </section>
+
+          <section class="panel">
+            <h2>Журнал событий</h2>
+            <ul id="eventLogChild" class="event-log"><li class="empty">Событий пока нет</li></ul>
+          </section>
+
+        </div>
+
+      </aside>
+
+      <main class="map-wrap">
+        <div id="map"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Consent modal (shown once for child role) -->
+  <div id="consentModal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>Прежде чем начать</h2>
+      <p>Твой родитель сможет видеть, где ты находишься, и получать уведомления, когда ты приходишь в такие места как дом или школа, либо уходишь из них.</p>
+      <p>Трекинг никогда не будет скрытым — в приложении всегда будет виден индикатор «трекинг активен». Ты можешь в любой момент посмотреть список зон и историю событий.</p>
+      <p>Отслеживание автоматически прекратится, когда тебе исполнится 15 лет.</p>
+      <button id="btnConsentAccept" class="btn btn-primary">Я понимаю и согласен(на)</button>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
